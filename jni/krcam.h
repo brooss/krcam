@@ -5,7 +5,9 @@
 #define IVF_FRAME_HDR_SZ (12)
 
 //libvpx ugly globals
-FILE                *infile, *outfile;
+//FILE                *infile, *outfile;
+kr_mkv_t			*kr_stream;
+int					video_track;
 vpx_codec_enc_cfg_t  cfg;
 int                  frame_cnt = 0;
 vpx_image_t          raw;

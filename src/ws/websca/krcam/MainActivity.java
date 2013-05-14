@@ -1,5 +1,6 @@
 package ws.websca.krcam;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
@@ -26,11 +27,11 @@ import android.widget.Toast;
 public class MainActivity extends Activity implements Callback, PreviewCallback {
 
 	public native String vpxOpen(String path, int w, int h, int threads);
-	public native String vpxNextFrame(byte input[], int w, int h);
-	public native String vpxClose(String path);
-	public native void vp8init();
+	public native String vpxNextFrame(byte input[], int w, int h, int tc);
+	public native String vpxClose();
 	private SurfaceView surfaceView;
 	private Camera camera;
+	private long FPSstartMs = -1;
 	private long startMs = -1;
 	private int frame;
 	private TextView textView;
@@ -58,11 +59,15 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 	protected void onStop() {
 		super.onStop();
 		camera.release();
+		Log.e("vpx", "stop");
+		vpxClose();
 	}
 	
 	protected void onPause() {
 		super.onPause();
 		camera.release();
+		Log.e("vpx", "pause");
+		vpxClose();
 	}
 	
 	
@@ -98,7 +103,9 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 							previewBuffer = new byte[size];
 							camera.addCallbackBuffer(previewBuffer);
 							
-							vpxOpen(Environment.getExternalStorageDirectory()+"/krcam.ivf", w, h, 1);
+							String path = Environment.getExternalStorageDirectory()+"/krcam.webm";
+							new File(path).delete();
+							vpxOpen(path, w, h, 1);
 							useWidth=w;
 							useHeight=h;
 							
@@ -125,15 +132,17 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 	public void surfaceDestroyed(SurfaceHolder arg0) {}
 
 	public void onPreviewFrame(byte[] buffer, Camera arg1) {
-		if(startMs<0) {
-			startMs  = System.currentTimeMillis();
+		if(startMs<=0)
+			startMs=System.currentTimeMillis();
+		if(FPSstartMs<0) {
+			FPSstartMs  = System.currentTimeMillis();
 			frame=0;
 		}
 		frame++;
-		Log.e("vpx", vpxNextFrame(previewBuffer, useWidth, useHeight));
+		Log.e("vpx", vpxNextFrame(previewBuffer, useWidth, useHeight, (int) (System.currentTimeMillis()-startMs)));
 		camera.addCallbackBuffer(previewBuffer);
-		if(System.currentTimeMillis()>=startMs+1000) {
-			startMs=System.currentTimeMillis();
+		if(System.currentTimeMillis()>=FPSstartMs+1000) {
+			FPSstartMs=System.currentTimeMillis();
 
 	        this.runOnUiThread(new Runnable() {
 	            public void run() {

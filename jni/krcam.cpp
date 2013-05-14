@@ -8,6 +8,7 @@ extern "C" {
 #include "vpx/vp8cx.h"
 #define interface (vpx_codec_vp8_cx())
 
+#include "krad_nanolib/krad_mkv.h"
 #include "krcam.h"
 
 
@@ -77,15 +78,21 @@ static void write_ivf_frame_header(FILE *outfile,
 	(void) fwrite(header, 1, 12, outfile);
 }
 
+JNIEXPORT void JNICALL Java_ws_websca_krcam_MainActivity_vpxClose( JNIEnv* env, jobject thiz)
+{
+	if(kr_stream!=NULL)
+		kr_mkv_destroy (&kr_stream);
+	kr_stream=NULL;
+}
 JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_vpxOpen( JNIEnv* env, jobject thiz, jstring path, jint w, jint h, jint threads )
 {
 	vpx_codec_err_t      res;
-
 	int width = w;
 	int height = h;
 	const char *nativeString = env->GetStringUTFChars(path, 0);
-	if(!(outfile = fopen(nativeString, "wb")))
-		return env->NewStringUTF("Failed to open ivf for writing");
+	kr_stream = kr_mkv_create_file ((char *)nativeString);
+	/*if(!(outfile = fopen(nativeString, "wb")))
+		return env->NewStringUTF("Failed to open ivf for writing");*/
 	env->ReleaseStringUTFChars(path, nativeString);
 
 	if(!vpx_img_alloc(&raw, VPX_IMG_FMT_I420, width, height, 1))
@@ -110,12 +117,14 @@ JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_vpxOpen( JNIEnv* env
 	else if(threads>2)
 		vpx_codec_control(&codec, VP8E_SET_TOKEN_PARTITIONS, VP8_TWO_TOKENPARTITION);
 
-	write_ivf_file_header(outfile, &cfg, 0);
+	//write_ivf_file_header(outfile, &cfg, 0);
+
+	video_track = kr_mkv_add_video_track (kr_stream, VP8, 25, 1, w, h);
 
 	return env->NewStringUTF("vpx ok");
 }
 
-JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_vpxNextFrame( JNIEnv* env, jobject thiz, jbyteArray input, jint w, jint h )
+JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_vpxNextFrame( JNIEnv* env, jobject thiz, jbyteArray input, jint w, jint h, jint tc )
 {
 	vpx_codec_iter_t iter = NULL;
 	const vpx_codec_cx_pkt_t *pkt;
@@ -138,20 +147,20 @@ JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_vpxNextFrame( JNIEnv
 	if(vpx_codec_encode(&codec, frame_avail? &raw : NULL, frame_cnt, 1, flags, VPX_DL_REALTIME))
 		return  env->NewStringUTF("Failed to encode frame\n");
 
+	int kf=false;
 	while( (pkt = vpx_codec_get_cx_data(&codec, &iter)) ) {
 
 		switch(pkt->kind) {
-		case VPX_CODEC_CX_FRAME_PKT:                                  //
-			write_ivf_frame_header(outfile, pkt);                     //
-			(void) fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz, //
-					outfile);                                   //
-			break;                                                    //
+		case VPX_CODEC_CX_FRAME_PKT:
+			//write_ivf_frame_header(outfile, pkt);
+			//(void) fwrite(pkt->data.frame.buf, 1, pkt->data.frame.sz, outfile);
+			kf = (pkt->data.frame.flags & VPX_FRAME_IS_KEY)? true:false;
+			kr_mkv_add_video_tc (kr_stream, video_track, (unsigned char *)pkt->data.frame.buf, pkt->data.frame.sz, kf, tc);
+			break;
 		default:
 			break;
 		}
-		sprintf(r, pkt->kind == VPX_CODEC_CX_FRAME_PKT
-		       && (pkt->data.frame.flags & VPX_FRAME_IS_KEY)? "K":".");
-		//fflush(stdout);
+		sprintf(r, pkt->kind == VPX_CODEC_CX_FRAME_PKT && (pkt->data.frame.flags & VPX_FRAME_IS_KEY)? "K":".");
 	}
 	frame_cnt++;
 	return env->NewStringUTF(r);
