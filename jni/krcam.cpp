@@ -89,6 +89,81 @@ static void write_ivf_frame_header(FILE *outfile,
 	(void) fwrite(header, 1, 12, outfile);
 }
 
+//hacked from gstreamer (lgpl)
+static void fill_frame(int frame_number, int width, int height, vpx_image_t *img) {
+	size_t to_read;
+
+	int t = frame_number;
+	int w = width, h = height;
+	int i;
+	int j;
+	int xreset = -(w / 2);
+	int yreset = -(h / 2);
+	int x, y;
+	int accum_kx;
+	int accum_kxt;
+	int accum_ky;
+	int accum_kyt;
+	int accum_kxy;
+	int kt;
+	int kt2;
+	int ky2;
+	int delta_kxt = 0 * t;
+	int delta_kxy;
+	int scale_kxy = 0xffff / (w / 2);
+	int scale_kx2 = 0xffff / w;
+	int vky=0;
+	int vkt=10;
+	int vkxy=0;
+	int vkyt=0;
+	int vky2=10;
+	int vk0=0;
+	int vkx=0;
+	int vkx2=10;
+	int vkt2=0;
+	  /* optimised version, with original code shown in comments */
+	  accum_ky = 0;
+	  accum_kyt = 0;
+	  kt = vkt * t;
+	  kt2 = vkt2 * t * t;
+	  for (j = 0, y = yreset; j < h; j++, y++) {
+	    accum_kx = 0;
+	    accum_kxt = 0;
+	    accum_ky += vky;
+	    accum_kyt += vkyt * t;
+	    delta_kxy = vkxy * y * scale_kxy;
+	    accum_kxy = delta_kxy * xreset;
+	    ky2 = (vky2 * y * y) / h;
+	    for (i = 0, x = xreset; i < w; i++, x++) {
+
+	      /* zero order */
+	      int phase = vk0;
+
+	      /* first order */
+	      accum_kx += vkx;
+	      /* phase = phase + (v->kx * i) + (v->ky * j) + (v->kt * t); */
+	      phase = phase + accum_kx + accum_ky + kt;
+
+	      /* cross term */
+	      accum_kxt += delta_kxt;
+	      accum_kxy += delta_kxy;
+	      /* phase = phase + (v->kxt * i * t) + (v->kyt * j * t); */
+	      phase = phase + accum_kxt + accum_kyt;
+
+	      /* phase = phase + (v->kxy * x * y) / (w/2); */
+	      /* phase = phase + accum_kxy / (w/2); */
+	      phase = phase + (accum_kxy >> 16);
+
+	      /*second order */
+	      /*normalise x/y terms to rate of change of phase at the picture edge */
+	      /*phase = phase + ((v->kx2 * x * x)/w) + ((v->ky2 * y * y)/h) + ((v->kt2 * t * t)>>1); */
+	      phase = phase + ((vkx2 * x * x * scale_kx2) >> 16) + ky2 + (kt2 >> 1);
+			img->planes[0][(j*w)+i] = sine_table[phase & 0xff];
+			img->planes[1][((j*w)+i)/2] = sine_table[phase & 0xff];
+		}
+	}
+}
+
 JNIEXPORT void JNICALL Java_ws_websca_krcam_MainActivity_vpxClose( JNIEnv* env, jobject thiz)
 {
 	if(kr_stream!=NULL)
@@ -161,17 +236,9 @@ JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_vpxNextFrame( JNIEnv
 	jbyte* bufferPtr = env->GetByteArrayElements(input, 0);
 	jsize lengthOfArray = env->GetArrayLength(input);
 
-	//memcpy(raw.planes[0], bufferPtr, w*h);
-
 	raw.planes[0] = (uint8_t *)bufferPtr;
-
-	/*
-	for(int x=0; x<(w*h)/2; x+=2) {
-		raw.planes[1][x/2]=bufferPtr[(w*h)+(x+1)];
-		raw.planes[2][x/2]=bufferPtr[(w*h)+(x)];
-	}
-	 */
 	deinterleave ((uint8_t *)bufferPtr + (w*h), raw.planes[2], raw.planes[1], (w*h) / 2);
+	//fill_frame(frame_cnt, w, h, &raw);
 
 	if(vpx_codec_encode(&codec, frame_avail? &raw : NULL, frame_cnt, 1, flags, VPX_DL_REALTIME))
 		return  env->NewStringUTF("Failed to encode frame\n");
