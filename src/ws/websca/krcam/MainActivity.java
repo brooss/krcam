@@ -19,6 +19,7 @@ import android.content.DialogInterface;
 import android.util.Log;
 import android.view.Menu;
 import android.view.SurfaceHolder;
+import android.view.WindowManager;
 import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
 import android.widget.TextView;
@@ -36,6 +37,10 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 	private int frame;
 	private TextView textView;
 	private byte[] previewBuffer;
+	private byte[] previewBuffer2;
+	private byte[] previewBuffer3;	
+	private byte[] previewBuffer4;
+	private byte[] previewBuffer5;	
 	private String formatString;
 	private int useWidth = Integer.MAX_VALUE;
 	private int useHeight = Integer.MAX_VALUE;
@@ -74,7 +79,7 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 	
 	protected void onStart() {
 		super.onStart();
-
+		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);	
 		textView = (TextView)findViewById(R.id.textView1);
 		surfaceView = (SurfaceView)findViewById(R.id.surfaceview);
 			camera = Camera.open();
@@ -101,8 +106,15 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 							camera.setParameters(parameters);
 							int size = h*w+((h*w)/2);
 							previewBuffer = new byte[size];
+							previewBuffer2 = new byte[size];
+							previewBuffer3 = new byte[size];
+							previewBuffer4 = new byte[size];
+							previewBuffer5 = new byte[size];
 							camera.addCallbackBuffer(previewBuffer);
-							
+							camera.addCallbackBuffer(previewBuffer2);
+							camera.addCallbackBuffer(previewBuffer3);
+							camera.addCallbackBuffer(previewBuffer4);
+							camera.addCallbackBuffer(previewBuffer5);
 							String path = Environment.getExternalStorageDirectory()+"/krcam.webm";
 							new File(path).delete();
 							vpxOpen(path, w, h, 1);
@@ -139,8 +151,8 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 			frame=0;
 		}
 		frame++;
-		Log.e("vpx", vpxNextFrame(previewBuffer, useWidth, useHeight, (int) (System.currentTimeMillis()-startMs)));
-		camera.addCallbackBuffer(previewBuffer);
+		Log.e("vpx", vpxNextFrame(buffer, useWidth, useHeight, (int) (System.currentTimeMillis()-startMs)));
+		camera.addCallbackBuffer(buffer);
 		if(System.currentTimeMillis()>=FPSstartMs+1000) {
 			FPSstartMs=System.currentTimeMillis();
 

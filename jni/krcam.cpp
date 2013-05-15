@@ -9,8 +9,8 @@ extern "C" {
 #define interface (vpx_codec_vp8_cx())
 
 #include "krad_nanolib/krad_mkv.h"
+#include "krad_nanolib/krad_deinterleave.h"
 #include "krcam.h"
-
 
 //TODO: Need this or android_getCpuFeatures doesn't link. Why?
 jboolean Java_ws_websca_krcam_MainActivity_getCpuArmNeon( JNIEnv* env,
@@ -22,6 +22,17 @@ jboolean Java_ws_websca_krcam_MainActivity_getCpuArmNeon( JNIEnv* env,
 		return JNI_TRUE;
 	else
 		return JNI_FALSE;
+}
+
+
+
+static void deinterleave(const uint8_t *srcAB, uint8_t *dstA, uint8_t *dstB, size_t srcABLength)
+{
+	if (android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_NEON)
+		deinterleave_nv21_to_i420_neon(srcAB, dstA, dstB, srcABLength);
+	else
+		deinterleave_nv21_to_i420(srcAB, dstA, dstB, srcABLength);
+	return;
 }
 
 
@@ -89,8 +100,22 @@ JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_vpxOpen( JNIEnv* env
 	vpx_codec_err_t      res;
 	int width = w;
 	int height = h;
-	const char *nativeString = env->GetStringUTFChars(path, 0);
+
+	char host[256];
+	char mount[256];
+	char password[256];
+	int32_t port;
+
+	snprintf (host, sizeof(host), "%s", "europa.kradradio.com");
+	snprintf (mount, sizeof(mount), "/krcam_%"PRIu64".webm", krad_unixtime());
+	snprintf (password, sizeof(password), "%s", "firefox");
+
+	port = 8008;
+	//kr_stream = kr_mkv_create_stream (host, port, mount, password);
+
+	char *nativeString = (char*)env->GetStringUTFChars(path, 0);
 	kr_stream = kr_mkv_create_file ((char *)nativeString);
+
 	/*if(!(outfile = fopen(nativeString, "wb")))
 		return env->NewStringUTF("Failed to open ivf for writing");*/
 	env->ReleaseStringUTFChars(path, nativeString);
@@ -104,10 +129,10 @@ JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_vpxOpen( JNIEnv* env
 		return env->NewStringUTF( vpx_codec_err_to_string(res));
 	}
 
-	cfg.rc_target_bitrate = width * height * cfg.rc_target_bitrate	/ cfg.g_w / cfg.g_h;
+	cfg.rc_target_bitrate = 1000;
 	cfg.g_w = width;
 	cfg.g_h = height;
-	cfg.g_threads=threads;
+	cfg.g_threads = 4;
 
 	if(vpx_codec_enc_init(&codec, interface, &cfg, 0))
 		return env->NewStringUTF("Failed to initialize encoder");
@@ -136,16 +161,23 @@ JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_vpxNextFrame( JNIEnv
 	jbyte* bufferPtr = env->GetByteArrayElements(input, 0);
 	jsize lengthOfArray = env->GetArrayLength(input);
 
-	memcpy(raw.planes[0], bufferPtr, w*h);
+	//memcpy(raw.planes[0], bufferPtr, w*h);
+
+	raw.planes[0] = (uint8_t *)bufferPtr;
+
+	/*
 	for(int x=0; x<(w*h)/2; x+=2) {
 		raw.planes[1][x/2]=bufferPtr[(w*h)+(x+1)];
 		raw.planes[2][x/2]=bufferPtr[(w*h)+(x)];
 	}
-
-	env->ReleaseByteArrayElements(input, bufferPtr, 0);
+	 */
+	deinterleave ((uint8_t *)bufferPtr + (w*h), raw.planes[2], raw.planes[1], (w*h) / 2);
 
 	if(vpx_codec_encode(&codec, frame_avail? &raw : NULL, frame_cnt, 1, flags, VPX_DL_REALTIME))
 		return  env->NewStringUTF("Failed to encode frame\n");
+
+	env->ReleaseByteArrayElements(input, bufferPtr, 0);
+
 
 	int kf=false;
 	while( (pkt = vpx_codec_get_cx_data(&codec, &iter)) ) {
@@ -163,6 +195,7 @@ JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_vpxNextFrame( JNIEnv
 		sprintf(r, pkt->kind == VPX_CODEC_CX_FRAME_PKT && (pkt->data.frame.flags & VPX_FRAME_IS_KEY)? "K":".");
 	}
 	frame_cnt++;
+
 	return env->NewStringUTF(r);
 }
 }
