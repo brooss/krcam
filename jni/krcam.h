@@ -15,19 +15,40 @@ extern "C" {
 #include "krad_nanolib/krad_deinterleave.h"
 #include "krcam_util.h"
 
-//libvpx ugly globals
-//FILE                *infile, *outfile;
-kr_mkv_t			*kr_stream;
-int					video_track;
-vpx_codec_enc_cfg_t  cfg;
-int                  frame_cnt = 0;
-vpx_image_t          raw;
-vpx_codec_ctx_t      codec;
+typedef struct kr_cam_St kr_cam_t;
+typedef struct kr_cam_params_St kr_cam_params_t;
 
+struct kr_cam_params_St {
+	uint32_t width;
+	uint32_t height;
+	//uint32_t video_bitrate;
+	//float audio_quality;
+	char *filename;
+	char *host;
+	int32_t port;
+	char *mount;
+	char *password;
+};
 
+struct kr_cam_St {
+	kr_cam_params_t *params;
+	kr_mkv_t *stream;
+	vpx_image_t raw;
+	vpx_codec_ctx_t codec;
+	uint32_t video_track_id;
+	uint32_t frame_count;
+	//kr_vorbis_t *vorbis;
+	//kr_vpx_t *vpx;
+	//krad_ringbuffer_t *audio_ring[2];
+	//uint32_t sample_rate;
+	//uint32_t channels;
+	//uint64_t total_samples;
+};
 
 static void deinterleave(const uint8_t *srcAB, uint8_t *dstA, uint8_t *dstB, size_t srcABLength);
 static void deinterleave_no_neon(const uint8_t *srcAB, uint8_t *dstA, uint8_t *dstB, size_t srcABLength);
 static void deinterleave_neon(const uint8_t *srcAB, uint8_t *dstA, uint8_t *dstB, size_t srcABLength);
+static kr_cam_params_t* init_params(char *path, int w, int h);
+static void free_params(kr_cam_params_t* params);
 }
 #endif

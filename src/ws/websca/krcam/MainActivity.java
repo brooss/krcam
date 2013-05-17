@@ -27,9 +27,10 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity implements Callback, PreviewCallback {
 
-	public native String vpxOpen(String path, int w, int h, int threads);
-	public native String vpxNextFrame(byte input[], int w, int h, int tc);
-	public native String vpxClose();
+	public native long krStreamCreate(String path, int w, int h, boolean networkStream);
+	public native String krAddVideo(long cam, byte input[], int tc);
+	public native boolean krStreamDestroy(long cam);
+	private Long cam=null;
 	private SurfaceView surfaceView;
 	private Camera camera;
 	private long FPSstartMs = -1;
@@ -65,20 +66,23 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 		super.onStop();
 		camera.release();
 		Log.e("vpx", "stop");
-		vpxClose();
+		if(cam!=null)
+			krStreamDestroy(cam);
+		cam=null;
 	}
 	
 	protected void onPause() {
 		super.onPause();
 		camera.release();
 		Log.e("vpx", "pause");
-		vpxClose();
+		if(cam!=null)
+			krStreamDestroy(cam);
+		cam=null;
 	}
-	
-	
 	
 	protected void onStart() {
 		super.onStart();
+		
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);	
 		textView = (TextView)findViewById(R.id.textView1);
 		surfaceView = (SurfaceView)findViewById(R.id.surfaceview);
@@ -96,6 +100,8 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 			int selected = 0;
 			builder.setSingleChoiceItems(choiceList, selected,
 					new DialogInterface.OnClickListener() {
+
+
 						public void onClick(DialogInterface dialog,	int which)
 						{
 							dialog.dismiss();
@@ -115,9 +121,8 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 							camera.addCallbackBuffer(previewBuffer3);
 							camera.addCallbackBuffer(previewBuffer4);
 							camera.addCallbackBuffer(previewBuffer5);
-							String path = Environment.getExternalStorageDirectory()+"/krcam.webm";
-							new File(path).delete();
-							vpxOpen(path, w, h, 1);
+
+							cam = krStreamCreate(Environment.getExternalStorageDirectory()+"/", w, h, false);
 							useWidth=w;
 							useHeight=h;
 							
@@ -138,7 +143,6 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 			surfaceView.getHolder().addCallback(this);
 	}
 
-
 	public void surfaceChanged(SurfaceHolder arg0, int arg1, int arg2, int arg3) {}
 	public void surfaceCreated(SurfaceHolder holder) {}
 	public void surfaceDestroyed(SurfaceHolder arg0) {}
@@ -151,7 +155,8 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 			frame=0;
 		}
 		frame++;
-		Log.e("vpx", vpxNextFrame(buffer, useWidth, useHeight, (int) (System.currentTimeMillis()-startMs)));
+		if(cam!=null)
+			Log.e("vpx", krAddVideo(cam, buffer, (int) (System.currentTimeMillis()-startMs)));
 		camera.addCallbackBuffer(buffer);
 		if(System.currentTimeMillis()>=FPSstartMs+1000) {
 			FPSstartMs=System.currentTimeMillis();
