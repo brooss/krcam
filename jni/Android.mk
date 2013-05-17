@@ -24,7 +24,7 @@ include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 LOCAL_MODULE    := krcam
-LOCAL_SRC_FILES := krcam.cpp
+LOCAL_SRC_FILES := krcam.cpp krcam_util.c
 LOCAL_STATIC_LIBRARIES := cpufeatures libvpx-prebuilt libogg-prebuilt libvorbis-prebuilt libkrad-prebuilt 
 LOCAL_CFLAGS 	:= -D__STDC_CONSTANT_MACROS
 LOCAL_LDLIBS    := -llog -landroid -lEGL -lGLESv1_CM 
