@@ -1,16 +1,5 @@
 #include "krcam.h"
 extern "C" {
-//TODO: Need this or android_getCpuFeatures doesn't link. Why?
-JNIEXPORT jboolean Java_ws_websca_krcam_MainActivity_getCpuArmNeon( JNIEnv* env,
-		jobject thiz )
-{
-	if(android_getCpuFamily()!=ANDROID_CPU_FAMILY_ARM)
-		return JNI_FALSE;
-	if ((android_getCpuFeatures() & ANDROID_CPU_ARM_FEATURE_NEON) != 0)
-		return JNI_TRUE;
-	else
-		return JNI_FALSE;
-}
 
 JNIEXPORT jlong JNICALL Java_ws_websca_krcam_MainActivity_krStreamCreate( JNIEnv* env, jobject thiz, jstring path, jint w, jint h, jboolean networkStream )
 {
@@ -50,12 +39,16 @@ JNIEXPORT jlong JNICALL Java_ws_websca_krcam_MainActivity_krStreamCreate( JNIEnv
 
 	cam->video_track_id = kr_mkv_add_video_track (cam->stream, VP8, 1000,	1, cam->params->width, cam->params->height);
 
+	cam->vorbis = krad_vorbis_encoder_create (cam->params->channels, cam->params->sample_rate, cam->params->audio_quality);
+
 	return (long)cam;
 }
 
 JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krStreamDestroy( JNIEnv* env, jobject thiz, jlong p )
 {
 	kr_cam_t *cam=(kr_cam_t*)p;
+
+	krad_vorbis_encoder_destroy (&cam->vorbis);
 	if(cam->stream!=NULL)
 		kr_mkv_destroy (&cam->stream);
 	cam->stream=NULL;
@@ -140,6 +133,11 @@ static kr_cam_params_t* init_params(char *path, int w, int h)
 	params->port=8008;
 	params->width=w;
 	params->height=h;
+
+	//audio
+	params->channels=2;
+	params->sample_rate=44000;
+	params->audio_quality=1;
 
 	return params;
 }

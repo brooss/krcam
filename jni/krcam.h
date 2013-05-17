@@ -23,7 +23,9 @@ struct kr_cam_params_St {
 	uint32_t width;
 	uint32_t height;
 	//uint32_t video_bitrate;
-	//float audio_quality;
+	float audio_quality;
+	uint32_t sample_rate;
+	uint32_t channels;
 	char *filename;
 	char *host;
 	int32_t port;
@@ -41,8 +43,6 @@ struct kr_cam_St {
 	krad_vorbis_t *vorbis;
 	//kr_vpx_t *vpx;
 	//krad_ringbuffer_t *audio_ring[2];
-	//uint32_t sample_rate;
-	//uint32_t channels;
 	//uint64_t total_samples;
 };
 
