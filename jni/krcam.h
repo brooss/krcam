@@ -12,6 +12,7 @@ extern "C" {
 #define interface (vpx_codec_vp8_cx())
 
 #include "krad_nanolib/krad_mkv.h"
+#include "krad_nanolib/krad_vorbis.h"
 #include "krad_nanolib/krad_deinterleave.h"
 #include "krcam_util.h"
 
@@ -37,7 +38,7 @@ struct kr_cam_St {
 	vpx_codec_ctx_t codec;
 	uint32_t video_track_id;
 	uint32_t frame_count;
-	//kr_vorbis_t *vorbis;
+	krad_vorbis_t *vorbis;
 	//kr_vpx_t *vpx;
 	//krad_ringbuffer_t *audio_ring[2];
 	//uint32_t sample_rate;

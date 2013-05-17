@@ -6,7 +6,7 @@
 #include <limits.h>
 #include <time.h>
 
-#include <vorbis/vorbisenc.h>
+#include "vorbis/vorbisenc.h"
 
 #include "krad_radio_version.h"
 #include "krad_system.h"
