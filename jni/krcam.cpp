@@ -44,6 +44,16 @@ JNIEXPORT jlong JNICALL Java_ws_websca_krcam_MainActivity_krStreamCreate( JNIEnv
 	return (long)cam;
 }
 
+JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krAudioCallback( JNIEnv* env, jobject thiz, jlong p, jbyteArray input, jint size )
+{
+	kr_cam_t *cam=(kr_cam_t*)p;
+
+	jbyte* bufferPtr = env->GetByteArrayElements(input, 0);
+	// todo: move to ringbuffer here.
+	env->ReleaseByteArrayElements(input, bufferPtr, 0);
+	return true;
+}
+
 JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krStreamDestroy( JNIEnv* env, jobject thiz, jlong p )
 {
 	kr_cam_t *cam=(kr_cam_t*)p;

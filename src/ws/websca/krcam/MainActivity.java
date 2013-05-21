@@ -11,6 +11,9 @@ import android.hardware.Camera;
 import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PreviewCallback;
 import android.hardware.Camera.Size;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.app.Activity;
@@ -25,12 +28,14 @@ import android.view.SurfaceView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends Activity implements Callback, PreviewCallback {
+public class MainActivity extends Activity implements Callback, PreviewCallback, Runnable {
 
 	public native long krStreamCreate(String path, int w, int h, boolean networkStream);
 	public native String krAddVideo(long cam, byte input[], int tc);
+	public native String krAudioCallback(long cam, byte input[], int size);
 	public native boolean krStreamDestroy(long cam);
 	private Long cam=null;
+	private AudioRecord ar;
 	private SurfaceView surfaceView;
 	private Camera camera;
 	private long FPSstartMs = -1;
@@ -78,6 +83,9 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 		if(cam!=null)
 			krStreamDestroy(cam);
 		cam=null;
+		if(ar!=null)
+			ar.release();
+		ar=null;
 	}
 	
 	protected void onStart() {
@@ -100,8 +108,6 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 			int selected = 0;
 			builder.setSingleChoiceItems(choiceList, selected,
 					new DialogInterface.OnClickListener() {
-
-
 						public void onClick(DialogInterface dialog,	int which)
 						{
 							dialog.dismiss();
@@ -134,6 +140,11 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 							}
 							camera.setPreviewCallbackWithBuffer(MainActivity.this);
 							camera.startPreview();
+							int min = AudioRecord.getMinBufferSize(44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+							ar = new AudioRecord(MediaRecorder.AudioSource.CAMCORDER, 44100, AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT, min);
+							ar.startRecording();
+							Thread t = new Thread(MainActivity.this);
+							t.start();
 						}
 					}
 					);
@@ -167,6 +178,16 @@ public class MainActivity extends Activity implements Callback, PreviewCallback 
 	            }
 	        });
 			frame=0;
+		}
+	}
+	@Override
+	public void run() {
+		android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
+		int min = AudioRecord.getMinBufferSize(44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+		byte sData[] = new byte[min/2];
+		while(cam!=null && ar!=null) {
+			ar.read(sData, 0, min/2);
+			krAudioCallback(cam, sData, sData.length);
 		}
 	}
 
