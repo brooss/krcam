@@ -52,7 +52,7 @@ JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krAudioCallback( JN
 	kr_cam_t *cam=(kr_cam_t*)p;
 	float samples[8192];
 	jbyte* bufferPtr = env->GetByteArrayElements(buffer, 0);
-	int16_to_float (samples, (char *)bufferPtr + (0 * 2),	size/2, 4);
+	int16_to_float (samples, (char *)bufferPtr + (0 * 2),	size/2, 2);
 	env->ReleaseByteArrayElements(buffer, bufferPtr, 0);
 	krad_ringbuffer_write (cam->audio_ring,	(char *)samples, (size/2) * 4);
 	return true;
@@ -154,7 +154,7 @@ static kr_cam_params_t* init_params(char *path, int w, int h)
 	//audio
 	params->channels=1;
 	params->sample_rate=44100;
-	params->audio_quality=-0.1;
+	params->audio_quality=0.3;
 
 	return params;
 }
@@ -166,16 +166,18 @@ void kr_cam_run_audio (kr_cam_t *cam) {
 	uint32_t c;
 	int32_t ret;
 
+	ret = 0;
+
 	int frames = 0;
 
 	amedium = kr_medium_kludge_create ();
 	acodeme = kr_codeme_kludge_create ();
 
-	while (krad_ringbuffer_read_space (cam->audio_ring) >= 1024*10 * 4) {
+	while (krad_ringbuffer_read_space (cam->audio_ring) >= 1024 * 4) {
 
-		krad_ringbuffer_read (cam->audio_ring, (char *)amedium->a.samples[0], 1024*10 * 4);
+		krad_ringbuffer_read (cam->audio_ring, (char *)amedium->a.samples[0], 1024 * 4);
 
-		amedium->a.count = 1024*10;
+		amedium->a.count = 1024;
 		amedium->a.channels = 1;
 		ret = kr_vorbis_encode (cam->vorbis, acodeme, amedium);
 		if (ret == 1) {
