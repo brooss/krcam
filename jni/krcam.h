@@ -1,5 +1,5 @@
-#ifndef KRCAM_UTIL_H_
-#define KRCAM_UTIL_H_
+#ifndef KRCAM_H_
+#define KRCAM_H_
 
 #include <jni.h>
 #include <cstdio>
@@ -39,10 +39,11 @@ struct kr_cam_St {
 	vpx_image_t raw;
 	vpx_codec_ctx_t codec;
 	uint32_t video_track_id;
+	uint32_t audio_track_id;
 	uint32_t frame_count;
 	krad_vorbis_t *vorbis;
 	//kr_vpx_t *vpx;
-	//krad_ringbuffer_t *audio_ring[2];
+	krad_ringbuffer_t *audio_ring;
 	//uint64_t total_samples;
 };
 
@@ -51,5 +52,6 @@ static void deinterleave_no_neon(const uint8_t *srcAB, uint8_t *dstA, uint8_t *d
 static void deinterleave_neon(const uint8_t *srcAB, uint8_t *dstA, uint8_t *dstB, size_t srcABLength);
 static kr_cam_params_t* init_params(char *path, int w, int h);
 static void free_params(kr_cam_params_t* params);
+static void kr_cam_run_audio (kr_cam_t *cam);
 }
 #endif

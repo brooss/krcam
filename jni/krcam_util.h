@@ -12,6 +12,7 @@ static void mem_put_le32(char *mem, unsigned int val);
 void write_ivf_frame_header(FILE *outfile, const vpx_codec_cx_pkt_t *pkt);
 void write_ivf_file_header(FILE *outfile, const vpx_codec_enc_cfg_t *cfg, int frame_cnt);
 void fill_frame(int frame_number, int width, int height, vpx_image_t *img);
+void int16_to_float (float *dst, char *src, uint32_t nsamples, uint32_t src_skip);
 
 //libvpx
 #define fourcc    0x30385056

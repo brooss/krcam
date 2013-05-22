@@ -124,4 +124,13 @@ void fill_frame(int frame_number, int width, int height, vpx_image_t *img) {
 	}
 }
 
+void int16_to_float (float *dst, char *src, uint32_t nsamples, uint32_t src_skip)
+{
+	const float scaling = 1.0/32767.0f;
+	while (nsamples--) {
+		*dst = (*((short *) src)) * scaling;
+		dst++;
+		src += src_skip;
+	}
+}
 

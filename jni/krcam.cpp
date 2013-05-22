@@ -41,23 +41,27 @@ JNIEXPORT jlong JNICALL Java_ws_websca_krcam_MainActivity_krStreamCreate( JNIEnv
 
 	cam->vorbis = krad_vorbis_encoder_create (cam->params->channels, cam->params->sample_rate, cam->params->audio_quality);
 
+	cam->audio_track_id = kr_mkv_add_audio_track(cam->stream, VORBIS, cam->params->sample_rate, cam->params->channels, cam->vorbis->hdrdata, 3 + cam->vorbis->header.sz[0] + cam->vorbis->header.sz[1] + cam->vorbis->header.sz[2]);
+	cam->audio_ring = krad_ringbuffer_create (500000);
+
 	return (long)cam;
 }
 
-JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krAudioCallback( JNIEnv* env, jobject thiz, jlong p, jbyteArray input, jint size )
+JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krAudioCallback( JNIEnv* env, jobject thiz, jlong p, jbyteArray buffer, jint size )
 {
 	kr_cam_t *cam=(kr_cam_t*)p;
-
-	jbyte* bufferPtr = env->GetByteArrayElements(input, 0);
-	// todo: move to ringbuffer here.
-	env->ReleaseByteArrayElements(input, bufferPtr, 0);
+	float samples[8192];
+	jbyte* bufferPtr = env->GetByteArrayElements(buffer, 0);
+	int16_to_float (samples, (char *)bufferPtr + (0 * 2),	size/2, 4);
+	env->ReleaseByteArrayElements(buffer, bufferPtr, 0);
+	krad_ringbuffer_write (cam->audio_ring,	(char *)samples, (size/2) * 4);
 	return true;
 }
 
 JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krStreamDestroy( JNIEnv* env, jobject thiz, jlong p )
 {
 	kr_cam_t *cam=(kr_cam_t*)p;
-
+	krad_ringbuffer_free (cam->audio_ring);
 	krad_vorbis_encoder_destroy (&cam->vorbis);
 	if(cam->stream!=NULL)
 		kr_mkv_destroy (&cam->stream);
@@ -102,6 +106,9 @@ JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_krAddVideo( JNIEnv* 
 		sprintf(r, pkt->kind == VPX_CODEC_CX_FRAME_PKT && (pkt->data.frame.flags & VPX_FRAME_IS_KEY)? "K":".");
 	}
 	cam->frame_count++;
+
+	kr_cam_run_audio(cam);
+
 	return env->NewStringUTF(r);
 }
 
@@ -145,10 +152,46 @@ static kr_cam_params_t* init_params(char *path, int w, int h)
 	params->height=h;
 
 	//audio
-	params->channels=2;
-	params->sample_rate=44000;
-	params->audio_quality=1;
+	params->channels=1;
+	params->sample_rate=44100;
+	params->audio_quality=-0.1;
 
 	return params;
+}
+
+void kr_cam_run_audio (kr_cam_t *cam) {
+
+	kr_medium_t *amedium;
+	kr_codeme_t *acodeme;
+	uint32_t c;
+	int32_t ret;
+
+	int frames = 0;
+
+	amedium = kr_medium_kludge_create ();
+	acodeme = kr_codeme_kludge_create ();
+
+	while (krad_ringbuffer_read_space (cam->audio_ring) >= 1024*10 * 4) {
+
+		krad_ringbuffer_read (cam->audio_ring, (char *)amedium->a.samples[0], 1024*10 * 4);
+
+		amedium->a.count = 1024*10;
+		amedium->a.channels = 1;
+		ret = kr_vorbis_encode (cam->vorbis, acodeme, amedium);
+		if (ret == 1) {
+			kr_mkv_add_audio (cam->stream, cam->audio_track_id, acodeme->data, acodeme->sz, acodeme->count);
+			int muxdelay = 0;
+			while (1) {
+				ret = kr_vorbis_encode (cam->vorbis, acodeme, NULL);
+				if (ret == 1) {
+					kr_mkv_add_audio (cam->stream, cam->audio_track_id, acodeme->data, acodeme->sz, acodeme->count);
+				} else {
+					break;
+				}
+			}
+		}
+	}
+	kr_medium_kludge_destroy (&amedium);
+	kr_codeme_kludge_destroy (&acodeme);
 }
 }

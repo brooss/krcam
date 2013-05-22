@@ -32,7 +32,7 @@ public class MainActivity extends Activity implements Callback, PreviewCallback,
 
 	public native long krStreamCreate(String path, int w, int h, boolean networkStream);
 	public native String krAddVideo(long cam, byte input[], int tc);
-	public native String krAudioCallback(long cam, byte input[], int size);
+	public native boolean krAudioCallback(long cam, byte buffer[], int size);
 	public native boolean krStreamDestroy(long cam);
 	private Long cam=null;
 	private AudioRecord ar;
@@ -184,11 +184,10 @@ public class MainActivity extends Activity implements Callback, PreviewCallback,
 	public void run() {
 		android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
 		int min = AudioRecord.getMinBufferSize(44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-		byte sData[] = new byte[min/2];
+		byte audioBuffer[] = new byte[min/2];
 		while(cam!=null && ar!=null) {
-			ar.read(sData, 0, min/2);
-			krAudioCallback(cam, sData, sData.length);
+			if(cam!=null)
+				krAudioCallback(cam, audioBuffer, audioBuffer.length);
 		}
 	}
-
 }
