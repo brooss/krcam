@@ -186,6 +186,8 @@ public class MainActivity extends Activity implements Callback, PreviewCallback,
 		int min = AudioRecord.getMinBufferSize(44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
 		byte audioBuffer[] = new byte[min/2];
 		while(cam!=null && ar!=null) {
+			if(ar!=null)
+				ar.read(audioBuffer, 0, min/2);
 			if(cam!=null)
 				krAudioCallback(cam, audioBuffer, audioBuffer.length);
 		}
