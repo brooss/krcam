@@ -1,11 +1,11 @@
 #include "krcam.h"
 extern "C" {
 
-JNIEXPORT jlong JNICALL Java_ws_websca_krcam_MainActivity_krStreamCreate( JNIEnv* env, jobject thiz, jstring path, jint w, jint h, jboolean networkStream )
+JNIEXPORT jlong JNICALL Java_ws_websca_krcam_MainActivity_krStreamCreate( JNIEnv* env, jobject thiz, jstring path, jint w, jint h, jint videoBitrate, jint audioSampleRate, jboolean networkStream )
 {
 	kr_cam_t *cam = (kr_cam_t*)calloc (1, sizeof(kr_cam_t));
 	char *nativeString = (char*)env->GetStringUTFChars(path, 0);
-	cam->params = init_params(nativeString, w, h);
+	cam->params = init_params(nativeString, w, h, audioSampleRate);
 	env->ReleaseStringUTFChars(path, nativeString);
 
 	if(networkStream==false)
@@ -24,7 +24,7 @@ JNIEXPORT jlong JNICALL Java_ws_websca_krcam_MainActivity_krStreamCreate( JNIEnv
 	}
 
 	int threads = 1;
-	cfg.rc_target_bitrate = 1000;
+	cfg.rc_target_bitrate = videoBitrate;
 	cfg.g_w = cam->params->width;
 	cfg.g_h = cam->params->height;
 	cfg.g_threads = 1;
@@ -130,7 +130,7 @@ static void free_params(kr_cam_params_t* params)
 	free(params);
 }
 
-static kr_cam_params_t* init_params(char *path, int w, int h)
+static kr_cam_params_t* init_params(char *path, int w, int h, int audioSampleRate)
 {
 	kr_cam_params_t *params;
 	params = (kr_cam_params_t*)calloc (1, sizeof(kr_cam_params_t));
@@ -153,7 +153,7 @@ static kr_cam_params_t* init_params(char *path, int w, int h)
 
 	//audio
 	params->channels=1;
-	params->sample_rate=44100;
+	params->sample_rate=audioSampleRate;
 	params->audio_quality=0.3;
 
 	return params;

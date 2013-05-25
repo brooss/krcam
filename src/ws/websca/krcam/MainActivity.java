@@ -1,36 +1,35 @@
 package ws.websca.krcam;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
-
-
-import android.graphics.ImageFormat;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.hardware.Camera;
 import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PreviewCallback;
-import android.hardware.Camera.Size;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
+import android.os.SystemClock;
+import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
 import android.view.SurfaceHolder;
-import android.view.WindowManager;
 import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
+import android.view.WindowManager;
+import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
 
 public class MainActivity extends Activity implements Callback, PreviewCallback, Runnable {
 
-	public native long krStreamCreate(String path, int w, int h, boolean networkStream);
+	//private static final int SAMPLERATE = 11025;
+	private static final int SAMPLERATE = 44100;
+	//private static final int SAMPLERATE = 48000;
+	public native long krStreamCreate(String path, int w, int h, int videoBitrate, int audioSampleRate, boolean networkStream);
 	public native String krAddVideo(long cam, byte input[], int tc);
 	public native boolean krAudioCallback(long cam, byte buffer[], int size);
 	public native boolean krStreamDestroy(long cam);
@@ -48,13 +47,15 @@ public class MainActivity extends Activity implements Callback, PreviewCallback,
 	private byte[] previewBuffer4;
 	private byte[] previewBuffer5;	
 	private String formatString;
-	private int useWidth = Integer.MAX_VALUE;
-	private int useHeight = Integer.MAX_VALUE;
+	private int videoWidth = Integer.MAX_VALUE;
+	private int videoHeight = Integer.MAX_VALUE;
+	private int videoBitrate=1000;
+	private EditText bitrateEditText;
 
 	static {
 		System.loadLibrary("krcam");
 	}
-	
+
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
@@ -66,92 +67,137 @@ public class MainActivity extends Activity implements Callback, PreviewCallback,
 		getMenuInflater().inflate(R.menu.main, menu);
 		return true;
 	}
-	
+
 	protected void onStop() {
 		super.onStop();
-		camera.release();
-		Log.e("vpx", "stop");
-		if(cam!=null)
-			krStreamDestroy(cam);
-		cam=null;
+		stop();
 	}
-	
+
 	protected void onPause() {
 		super.onPause();
+	}
+
+	protected void onResume() {
+		super.onResume();
+		start();
+	}
+
+	protected void onStart() {
+		super.onStart();
+	}
+
+	private void stop() {
+		surfaceView.getHolder().removeCallback(this);
 		camera.release();
-		Log.e("vpx", "pause");
 		if(cam!=null)
 			krStreamDestroy(cam);
 		cam=null;
 		if(ar!=null)
 			ar.release();
 		ar=null;
+
 	}
-	
-	protected void onStart() {
-		super.onStart();
-		
+
+	private void startVideo() {
+		Camera.Parameters parameters = camera.getParameters(); 
+
+		parameters.setPreviewSize(videoWidth, videoHeight);
+		camera.setParameters(parameters);
+		int size = videoHeight*videoWidth+((videoHeight*videoWidth)/2);
+		previewBuffer = new byte[size];
+		previewBuffer2 = new byte[size];
+		previewBuffer3 = new byte[size];
+		previewBuffer4 = new byte[size];
+		previewBuffer5 = new byte[size];
+		camera.addCallbackBuffer(previewBuffer);
+		camera.addCallbackBuffer(previewBuffer2);
+		camera.addCallbackBuffer(previewBuffer3);
+		camera.addCallbackBuffer(previewBuffer4);
+		camera.addCallbackBuffer(previewBuffer5);
+
+		cam = krStreamCreate(Environment.getExternalStorageDirectory()+"/", videoWidth, videoHeight, videoBitrate, SAMPLERATE, false);
+
+		formatString = ""+parameters.getPreviewSize().width+"x"+parameters.getPreviewSize().height+" NV21 ";
+		try {
+			camera.setPreviewDisplay(surfaceView.getHolder());
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		camera.setPreviewCallbackWithBuffer(MainActivity.this);
+		camera.startPreview();
+		int min = AudioRecord.getMinBufferSize(SAMPLERATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+		ar = new AudioRecord(MediaRecorder.AudioSource.CAMCORDER, SAMPLERATE, AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT, min);
+		ar.startRecording();
+		Thread t = new Thread(MainActivity.this);
+		t.start();
+	}
+	private final class bitrateSelectedOnClickListener implements DialogInterface.OnClickListener {
+
+		public void onClick(DialogInterface dialog,	int which) {
+			
+			String value = bitrateEditText.getText().toString();
+			try{
+				videoBitrate = Integer.parseInt(value);
+				if(videoBitrate>=40 && videoBitrate <= 1000000) {
+					dialog.dismiss();
+					startVideo();
+				}
+				else
+					showBitrateDialog();
+			}
+			catch(java.lang.NumberFormatException e) {
+				showBitrateDialog();
+			}
+		}
+	}
+	private void showBitrateDialog() {
+
+		AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+		builder.setTitle("Video Bitrate");
+		bitrateEditText = new EditText(MainActivity.this);
+		bitrateEditText.setText(""+videoBitrate);
+		bitrateEditText.setInputType(InputType.TYPE_CLASS_NUMBER);
+		bitrateEditText.setSingleLine();
+		builder.setView(bitrateEditText);
+		builder.setPositiveButton("Ok", new bitrateSelectedOnClickListener());
+		builder.setCancelable(false);
+		AlertDialog alert = builder.create();
+		alert.show();
+	}
+	private final class resSelectedOnClickListener implements DialogInterface.OnClickListener {
+
+
+		public void onClick(DialogInterface dialog,	int which)
+		{
+			Camera.Parameters parameters = camera.getParameters(); 
+			videoWidth=parameters.getSupportedPreviewSizes().get(which).width;
+			videoHeight=parameters.getSupportedPreviewSizes().get(which).height;
+			dialog.dismiss();
+			showBitrateDialog();
+		}
+	}
+
+	private void start() {
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);	
 		textView = (TextView)findViewById(R.id.textView1);
 		surfaceView = (SurfaceView)findViewById(R.id.surfaceview);
-			camera = Camera.open();
-			Parameters p = camera.getParameters();
-	        		
-			AlertDialog.Builder builder = new AlertDialog.Builder(this);
-			builder.setTitle("Video Resolution");
-			
+		camera = Camera.open();
+		Parameters p = camera.getParameters();
 
-			String choiceList[] = new String[p.getSupportedPreviewSizes().size()];
-			for(int x=0; x<p.getSupportedPreviewSizes().size(); x++) {
-				choiceList[x]=new String(""+p.getSupportedPreviewSizes().get(x).width+"x"+p.getSupportedPreviewSizes().get(x).height);
-			}
-			int selected = 0;
-			builder.setSingleChoiceItems(choiceList, selected,
-					new DialogInterface.OnClickListener() {
-						public void onClick(DialogInterface dialog,	int which)
-						{
-							dialog.dismiss();
-							Camera.Parameters parameters = camera.getParameters(); 
-							int w=parameters.getSupportedPreviewSizes().get(which).width;
-							int h=parameters.getSupportedPreviewSizes().get(which).height;
-							parameters.setPreviewSize(w, h);
-							camera.setParameters(parameters);
-							int size = h*w+((h*w)/2);
-							previewBuffer = new byte[size];
-							previewBuffer2 = new byte[size];
-							previewBuffer3 = new byte[size];
-							previewBuffer4 = new byte[size];
-							previewBuffer5 = new byte[size];
-							camera.addCallbackBuffer(previewBuffer);
-							camera.addCallbackBuffer(previewBuffer2);
-							camera.addCallbackBuffer(previewBuffer3);
-							camera.addCallbackBuffer(previewBuffer4);
-							camera.addCallbackBuffer(previewBuffer5);
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle("Video Resolution");
 
-							cam = krStreamCreate(Environment.getExternalStorageDirectory()+"/", w, h, false);
-							useWidth=w;
-							useHeight=h;
-							
-							formatString = ""+parameters.getPreviewSize().width+"x"+parameters.getPreviewSize().height+" NV21 ";
-							try {
-								camera.setPreviewDisplay(surfaceView.getHolder());
-							} catch (IOException e) {
-								e.printStackTrace();
-							}
-							camera.setPreviewCallbackWithBuffer(MainActivity.this);
-							camera.startPreview();
-							int min = AudioRecord.getMinBufferSize(44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-							ar = new AudioRecord(MediaRecorder.AudioSource.CAMCORDER, 44100, AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT, min);
-							ar.startRecording();
-							Thread t = new Thread(MainActivity.this);
-							t.start();
-						}
-					}
-					);
-			AlertDialog alert = builder.create();
-	        alert.show();
-			surfaceView.getHolder().setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-			surfaceView.getHolder().addCallback(this);
+		String choiceList[] = new String[p.getSupportedPreviewSizes().size()];
+		for(int x=0; x<p.getSupportedPreviewSizes().size(); x++) {
+			choiceList[x]=new String(""+p.getSupportedPreviewSizes().get(x).width+"x"+p.getSupportedPreviewSizes().get(x).height);
+		}
+		int selected = 0;
+		builder.setSingleChoiceItems(choiceList, selected, new resSelectedOnClickListener());
+		builder.setCancelable(false);
+		AlertDialog alert = builder.create();
+		alert.show();
+		surfaceView.getHolder().setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+		surfaceView.getHolder().addCallback(this);
 	}
 
 	public void surfaceChanged(SurfaceHolder arg0, int arg1, int arg2, int arg3) {}
@@ -160,30 +206,30 @@ public class MainActivity extends Activity implements Callback, PreviewCallback,
 
 	public void onPreviewFrame(byte[] buffer, Camera arg1) {
 		if(startMs<=0)
-			startMs=System.currentTimeMillis();
+			startMs=SystemClock.elapsedRealtime();
 		if(FPSstartMs<0) {
-			FPSstartMs  = System.currentTimeMillis();
+			FPSstartMs  = SystemClock.elapsedRealtime();
 			frame=0;
 		}
 		frame++;
 		if(cam!=null)
-			Log.e("vpx", krAddVideo(cam, buffer, (int) (System.currentTimeMillis()-startMs)));
+			Log.e("vpx", krAddVideo(cam, buffer, (int) (SystemClock.elapsedRealtime()-startMs)));
 		camera.addCallbackBuffer(buffer);
-		if(System.currentTimeMillis()>=FPSstartMs+1000) {
-			FPSstartMs=System.currentTimeMillis();
+		if(SystemClock.elapsedRealtime()>=FPSstartMs+1000) {
+			FPSstartMs=SystemClock.elapsedRealtime();
 
-	        this.runOnUiThread(new Runnable() {
-	            public void run() {
-					textView.setText(formatString+" @"+frame+"FPS");
-	            }
-	        });
+			this.runOnUiThread(new Runnable() {
+				public void run() {
+					textView.setText(formatString+" @"+frame+"FPS"+" "+videoBitrate+"kb/s");
+				}
+			});
 			frame=0;
 		}
 	}
 	@Override
 	public void run() {
 		android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
-		int min = AudioRecord.getMinBufferSize(44100, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+		int min = AudioRecord.getMinBufferSize(SAMPLERATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
 		byte audioBuffer[] = new byte[min/2];
 		while(cam!=null && ar!=null) {
 			if(ar!=null)
