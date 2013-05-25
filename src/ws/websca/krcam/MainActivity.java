@@ -4,7 +4,12 @@ import java.io.IOException;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.hardware.Camera;
 import android.hardware.Camera.Parameters;
 import android.hardware.Camera.PreviewCallback;
@@ -14,6 +19,7 @@ import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.SystemClock;
+import android.support.v4.app.NotificationCompat;
 import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
@@ -95,7 +101,7 @@ public class MainActivity extends Activity implements Callback, PreviewCallback,
 		if(ar!=null)
 			ar.release();
 		ar=null;
-
+		this.setNotifaction(false);
 	}
 
 	private void startVideo() {
@@ -130,6 +136,7 @@ public class MainActivity extends Activity implements Callback, PreviewCallback,
 		ar.startRecording();
 		Thread t = new Thread(MainActivity.this);
 		t.start();
+		this.setNotifaction(true);
 	}
 	private final class bitrateSelectedOnClickListener implements DialogInterface.OnClickListener {
 
@@ -164,9 +171,8 @@ public class MainActivity extends Activity implements Callback, PreviewCallback,
 		AlertDialog alert = builder.create();
 		alert.show();
 	}
+	
 	private final class resSelectedOnClickListener implements DialogInterface.OnClickListener {
-
-
 		public void onClick(DialogInterface dialog,	int which)
 		{
 			Camera.Parameters parameters = camera.getParameters(); 
@@ -237,5 +243,28 @@ public class MainActivity extends Activity implements Callback, PreviewCallback,
 			if(cam!=null)
 				krAudioCallback(cam, audioBuffer, audioBuffer.length);
 		}
+	}
+	
+	public void setNotifaction(boolean show) {
+		NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+		if(show) {
+			NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
+			        .setSmallIcon(android.R.drawable.ic_media_play)
+			        .setContentTitle("krcam")
+			        .setContentText("Streaming!");
+			mBuilder.setProgress(0, 0, true);
+			Intent resultIntent = new Intent(this, MainActivity.class);
+			PendingIntent resultPendingIntent;
+			resultPendingIntent =  PendingIntent.getActivity(this, 0, resultIntent, 0);
+			mBuilder.setContentIntent(resultPendingIntent);
+			
+			Notification n = mBuilder.build();
+			n.flags = Notification.FLAG_ONGOING_EVENT | Notification.FLAG_NO_CLEAR;
+			notificationManager.notify(0, n);
+		}
+		else {
+			notificationManager.cancel(0);
+		}
+		
 	}
 }
