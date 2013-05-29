@@ -51,13 +51,16 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
 	private AudioRecord ar;
 	private KrCamServiceReceiver receiver;
 	private String formatString;
+	private int audioQuality;
+	private boolean streamFile;
+	private boolean localFile;
 	
 	
 	static {
 		System.loadLibrary("krcam");
 	}
 	
-	public native long krStreamCreate(String path, int w, int h, int videoBitrate, int audioSampleRate, boolean networkStream);
+	public native long krStreamCreate(String path, int w, int h, int videoBitrate, int audioSampleRate, int audioQuality, boolean networkStream, boolean saveLocal);
 	public native String krAddVideo(long cam, byte input[], int tc);
 	public native boolean krAudioCallback(long cam, byte buffer[], int size);
 	public native boolean krStreamDestroy(long cam);
@@ -95,6 +98,9 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
 		videoHeight = intent.getIntExtra("videoHeight", -1);
 		videoBitrate = intent.getIntExtra("videoBitrate", -1);
 		audioSampleRate = intent.getIntExtra("audioSampleRate", 44100);
+		audioQuality = intent.getIntExtra("audioQuality", 3);
+		streamFile = intent.getBooleanExtra("stream", false);
+		localFile = intent.getBooleanExtra("local", true);
 		
 		createSurface(1,1);
 
@@ -115,7 +121,7 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
 		camera.addCallbackBuffer(buffer);
 		if(SystemClock.elapsedRealtime()>=FPSstartMs+1000) {
 			FPSstartMs=SystemClock.elapsedRealtime();
-			Intent intent = new Intent(this.UPDATEUI);
+			Intent intent = new Intent(KrCamService.UPDATEUI);
 			intent.putExtra("uistring", formatString+" @"+frame+"FPS"+" "+videoBitrate+"kb/s");
 			sendBroadcast(intent);
 			frame=0;
@@ -150,7 +156,7 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
 		}
 		camera.startPreview();
 		if(krCamStream==null) {
-			krCamStream = krStreamCreate(Environment.getExternalStorageDirectory()+"/", videoWidth, videoHeight, videoBitrate, audioSampleRate, false);
+			krCamStream = krStreamCreate(Environment.getExternalStorageDirectory()+"/", videoWidth, videoHeight, videoBitrate, audioSampleRate, audioQuality, streamFile, localFile);
 			formatString = ""+videoWidth+"x"+videoHeight+" NV21 ";
 
 			int min = AudioRecord.getMinBufferSize(audioSampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);

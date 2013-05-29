@@ -10,7 +10,11 @@
     <string name="empty"></string>
     <string name="mic">Mic</string>
     <string name="camera">Camera</string>
-    <string name="videoBitrate">Video Bitrate</string>
+    <string name="videoBitrate">Video Bitrate (kb/s)</string>
     <string name="kbs">kb/s</string>
+    <string name="audioQuality">Audio Quality (0-10)</string>
+    <string name="stream">Stream to internet</string>
+    <string name="both">Both</string>
+    <string name="saveToSdcard">Saved to SDCARD</string>
 
 </resources>

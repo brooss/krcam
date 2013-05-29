@@ -24,12 +24,16 @@ import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Spinner;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
 
 	private static final int DEFAULTVIDEOBITRATE = 1000;
+
+	protected static final int DEFAULTAUDIOQUALITY = 3;
 
 	private Camera camera;
 
@@ -39,6 +43,7 @@ public class MainActivity extends Activity {
 	private int videoHeight = Integer.MAX_VALUE;
 	private int videoBitrate=DEFAULTVIDEOBITRATE;
 	private int audioSamplerate=48000;
+	private int audioQuality;
 	private EditText bitrateEditText;
 	private UpdateUiReceiver receiver;
 	private Button showVideoButton;
@@ -54,6 +59,19 @@ public class MainActivity extends Activity {
 	private Parameters cameraParams=null;
 
 	private EditText videoBitrateEditText;
+
+	private EditText audioQualityEditText;
+
+	private RadioButton streamRadio;
+
+	private RadioButton localRadio;
+
+	private RadioButton bothRadio;
+
+	private boolean streamFile;
+	private boolean localFile;
+
+	private RadioGroup streamToRadioGroup;
 	
 
 	static {
@@ -95,6 +113,11 @@ public class MainActivity extends Activity {
 		cameraSpinner = (Spinner)findViewById(R.id.cameraSpinner);
 		cameraResSpinner = (Spinner)findViewById(R.id.cameraResSpinner);
 		videoBitrateEditText = (EditText)findViewById(R.id.videoBitrateEditText);
+		audioQualityEditText = (EditText)findViewById(R.id.audioQualityEditText);
+		streamRadio = (RadioButton)findViewById(R.id.streamRadio);
+		localRadio = (RadioButton)findViewById(R.id.localRadio);
+		bothRadio = (RadioButton)findViewById(R.id.bothRadio);
+		streamToRadioGroup = (RadioGroup)findViewById(R.id.streamToRadioGroup);
 				
 		populateSpinners();
 		
@@ -104,6 +127,8 @@ public class MainActivity extends Activity {
 		registerReceiver(receiver, filter);
 		
 		startStreamingButton.setOnClickListener(new OnClickListener() {
+
+
 			public void onClick(View arg0) {
 				setUiStateRecording(true);
 				videoWidth=cameraParams.getSupportedPreviewSizes().get(cameraResSpinner.getSelectedItemPosition()).width;
@@ -119,6 +144,25 @@ public class MainActivity extends Activity {
 					videoBitrate=DEFAULTVIDEOBITRATE;
 				}
 				videoBitrateEditText.setText(""+videoBitrate);
+				
+				try{
+					audioQuality = Integer.parseInt(audioQualityEditText.getText().toString());
+					if(audioQuality<0 || audioQuality > 10) {
+						audioQuality=DEFAULTAUDIOQUALITY;
+					}
+				}
+				catch(java.lang.NumberFormatException e) {
+					audioQuality=DEFAULTAUDIOQUALITY;
+				}
+				audioQualityEditText.setText(""+audioQuality);
+				
+				localFile = localRadio.isChecked();
+				streamFile = streamRadio.isChecked();
+				if(bothRadio.isChecked()) {
+					localFile=true;
+					streamFile=true;
+				}
+				
 				startVideo();
  			}
  		});
@@ -150,6 +194,9 @@ public class MainActivity extends Activity {
 		i.putExtra("videoHeight", videoHeight);
 		i.putExtra("videoBitrate", videoBitrate);
 		i.putExtra("audioSampleRate", audioSamplerate);
+		i.putExtra("audioQuality", audioQuality);
+		i.putExtra("stream", streamFile);
+		i.putExtra("local", localFile);
 		startService(i);
 
 	}
@@ -203,6 +250,8 @@ public class MainActivity extends Activity {
 		micSpinner.setEnabled(!rec);
 		micSamplerateSpinner.setEnabled(!rec);
 		videoBitrateEditText.setEnabled(!rec);
+		audioQualityEditText.setEnabled(!rec);
+		streamToRadioGroup.setEnabled(!rec);
 	}
 
 	public class UpdateUiReceiver extends BroadcastReceiver {

@@ -1,7 +1,7 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/mainLayout"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent" >
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:ads="http://schemas.android.com/apk/lib/com.google.ads"
+	android:layout_width="match_parent" android:layout_height="match_parent"
+	android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -44,7 +44,7 @@
         </LinearLayout>
 
         <TableLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content" >
 
             <TableRow
@@ -87,44 +87,77 @@
                 android:id="@+id/tableRow3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" >
+
+                <TextView
+                    android:id="@+id/textView2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/videoBitrate"
+                    android:width="0dp" />
+
+                <EditText
+                    android:id="@+id/videoBitrateEditText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ems="10"
+                    android:inputType="number"
+                    android:text="1000"
+                    android:width="0dp" />
             </TableRow>
 
             <TableRow
                 android:id="@+id/tableRow4"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" >
+
+                <TextView
+                    android:id="@+id/textView3"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/audioQuality"
+                    android:width="0dp" />
+
+                <EditText
+                    android:id="@+id/audioQualityEditText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ems="10"
+                    android:inputType="number"
+                    android:text="3"
+                    android:width="0dp" />
             </TableRow>
         </TableLayout>
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <RadioGroup
+            android:id="@+id/streamToRadioGroup"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content" >
 
-            <TextView
-                android:id="@+id/textView2"
+            <RadioButton
+                android:id="@+id/streamRadio"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/videoBitrate" />
+                android:checked="true"
+                android:text="@string/stream" />
 
-            <EditText
-                android:id="@+id/videoBitrateEditText"
+            <RadioButton
+                android:id="@+id/localRadio"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:ems="10"
-                android:inputType="number"
-                android:text="1000" />
+                android:text="@string/saveToSdcard" />
 
-            <TextView
-                android:id="@+id/textView3"
+            <RadioButton
+                android:id="@+id/bothRadio"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/kbs" />
+                android:text="@string/both" />
 
-        </LinearLayout>
+        </RadioGroup>
 
     </LinearLayout>
 
-</FrameLayout>
+</ScrollView>

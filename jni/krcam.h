@@ -50,7 +50,7 @@ struct kr_cam_St {
 static void deinterleave(const uint8_t *srcAB, uint8_t *dstA, uint8_t *dstB, size_t srcABLength);
 static void deinterleave_no_neon(const uint8_t *srcAB, uint8_t *dstA, uint8_t *dstB, size_t srcABLength);
 static void deinterleave_neon(const uint8_t *srcAB, uint8_t *dstA, uint8_t *dstB, size_t srcABLength);
-static kr_cam_params_t* init_params(char *path, int w, int h, int audioSampleRate);
+static kr_cam_params_t* init_params(char *path, int w, int h, int audioSampleRate, int audioQuality);
 static void free_params(kr_cam_params_t* params);
 static void kr_cam_run_audio (kr_cam_t *cam);
 }
