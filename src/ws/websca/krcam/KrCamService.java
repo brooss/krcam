@@ -73,6 +73,10 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
     	camera.release();
 		WindowManager wm = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
 		wm.removeView(surfaceView);
+		ar.release();
+		ar=null;
+		krStreamDestroy(krCamStream);
+		krCamStream=null;
 		this.setNotifaction(false);
 		unregisterReceiver(receiver);
     }
@@ -150,10 +154,14 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
 			formatString = ""+videoWidth+"x"+videoHeight+" NV21 ";
 
 			int min = AudioRecord.getMinBufferSize(audioSampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-			ar = new AudioRecord(MediaRecorder.AudioSource.CAMCORDER, audioSampleRate, AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT, min);
-			ar.startRecording();
-			Thread t = new Thread(this);
-			t.start();
+			try{
+				ar = new AudioRecord(MediaRecorder.AudioSource.CAMCORDER, audioSampleRate, AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT, min);
+				ar.startRecording();
+				Thread t = new Thread(this);
+				t.start();
+			} catch(Exception e) {
+				
+			}
 		}
 	}
 	public void surfaceCreated(SurfaceHolder arg0) {}

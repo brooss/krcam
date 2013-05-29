@@ -4,9 +4,13 @@
     <string name="app_name">krcam</string>
     <string name="action_settings">Settings</string>
     <string name="hello_world">Hello world!</string>
-    <string name="showVideo">Show Video</string>
-    <string name="startStreaming">Start Streaming</string>
-    <string name="stopStreaming">Stop Streaming</string>
+    <string name="showVideo">Preview</string>
+    <string name="startStreaming">Start</string>
+    <string name="stopStreaming">Stop</string>
     <string name="empty"></string>
+    <string name="mic">Mic</string>
+    <string name="camera">Camera</string>
+    <string name="videoBitrate">Video Bitrate</string>
+    <string name="kbs">kb/s</string>
 
 </resources>
