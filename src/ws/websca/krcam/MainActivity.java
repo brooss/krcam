@@ -21,8 +21,8 @@ import android.widget.TextView;
 
 public class MainActivity extends Activity {
 
-	private static final int SAMPLERATE = 11025;
-	//private static final int SAMPLERATE = 44100;
+	//private static final int SAMPLERATE = 11025;
+	private static final int SAMPLERATE = 44100;
 	//private static final int SAMPLERATE = 48000;
 	
 	private Camera camera;
