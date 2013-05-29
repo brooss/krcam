@@ -12,13 +12,28 @@
             android:id="@+id/textView1"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Large Text"
+            android:text="@string/empty"
             android:textAppearance="?android:attr/textAppearanceLarge" />
 
-        <SurfaceView
-            android:id="@+id/surfaceview"
-            android:layout_width="fill_parent"
-            android:layout_height="fill_parent" />
+        <Button
+            android:id="@+id/startStreaming"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/startStreaming" />
+
+        <Button
+            android:id="@+id/stopStreaming"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:text="@string/stopStreaming" />
+
+        <Button
+            android:id="@+id/showVideo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:enabled="false"
+            android:text="@string/showVideo" />
 
     </LinearLayout>
 

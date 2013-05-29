@@ -1,7 +1,7 @@
 #include "krcam.h"
 extern "C" {
 
-JNIEXPORT jlong JNICALL Java_ws_websca_krcam_MainActivity_krStreamCreate( JNIEnv* env, jobject thiz, jstring path, jint w, jint h, jint videoBitrate, jint audioSampleRate, jboolean networkStream )
+JNIEXPORT jlong JNICALL Java_ws_websca_krcam_KrCamService_krStreamCreate( JNIEnv* env, jobject thiz, jstring path, jint w, jint h, jint videoBitrate, jint audioSampleRate, jboolean networkStream )
 {
 	kr_cam_t *cam = (kr_cam_t*)calloc (1, sizeof(kr_cam_t));
 	char *nativeString = (char*)env->GetStringUTFChars(path, 0);
@@ -47,7 +47,7 @@ JNIEXPORT jlong JNICALL Java_ws_websca_krcam_MainActivity_krStreamCreate( JNIEnv
 	return (long)cam;
 }
 
-JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krAudioCallback( JNIEnv* env, jobject thiz, jlong p, jbyteArray buffer, jint size )
+JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_KrCamService_krAudioCallback( JNIEnv* env, jobject thiz, jlong p, jbyteArray buffer, jint size )
 {
 	kr_cam_t *cam=(kr_cam_t*)p;
 	float samples[8192];
@@ -58,7 +58,7 @@ JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krAudioCallback( JN
 	return true;
 }
 
-JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krStreamDestroy( JNIEnv* env, jobject thiz, jlong p )
+JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_KrCamService_krStreamDestroy( JNIEnv* env, jobject thiz, jlong p )
 {
 	kr_cam_t *cam=(kr_cam_t*)p;
 	krad_ringbuffer_free (cam->audio_ring);
@@ -71,7 +71,7 @@ JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_MainActivity_krStreamDestroy( JN
 	return true;
 }
 
-JNIEXPORT jstring JNICALL Java_ws_websca_krcam_MainActivity_krAddVideo( JNIEnv* env, jobject thiz, jlong p, jbyteArray input, jint tc )
+JNIEXPORT jstring JNICALL Java_ws_websca_krcam_KrCamService_krAddVideo( JNIEnv* env, jobject thiz, jlong p, jbyteArray input, jint tc )
 {
 	kr_cam_t *cam = (kr_cam_t*)p;
 	vpx_codec_iter_t iter = NULL;
