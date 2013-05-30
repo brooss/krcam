@@ -48,19 +48,21 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
 	private long FPSstartMs=Long.MIN_VALUE;
 	private int frame;
 	private Long krCamStream=null;
-	private AudioRecord ar;
+	private AudioRecord ar=null;
 	private KrCamServiceReceiver receiver;
 	private String formatString;
 	private int audioQuality;
 	private boolean streamFile;
 	private boolean localFile;
+	private int cameraNumber=0;
+	private int micSource;
 	
 	
 	static {
 		System.loadLibrary("krcam");
 	}
 	
-	public native long krStreamCreate(String path, int w, int h, int videoBitrate, int audioSampleRate, int audioQuality, boolean networkStream, boolean saveLocal);
+	public native long krStreamCreate(String path, int w, int h, int videoBitrate, boolean useAudio, int audioSampleRate, int audioQuality, boolean networkStream, boolean saveLocal);
 	public native String krAddVideo(long cam, byte input[], int tc);
 	public native boolean krAudioCallback(long cam, byte buffer[], int size);
 	public native boolean krStreamDestroy(long cam);
@@ -76,7 +78,8 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
     	camera.release();
 		WindowManager wm = (WindowManager) this.getSystemService(Context.WINDOW_SERVICE);
 		wm.removeView(surfaceView);
-		ar.release();
+		if(ar!=null) 
+			ar.release();
 		ar=null;
 		krStreamDestroy(krCamStream);
 		krCamStream=null;
@@ -94,6 +97,8 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
 		receiver = new KrCamServiceReceiver();
 		registerReceiver(receiver, filter);
 		
+		cameraNumber = intent.getIntExtra("cameraNumber", 0);
+		micSource = intent.getIntExtra("micSource", MediaRecorder.AudioSource.CAMCORDER);
 		videoWidth = intent.getIntExtra("videoWidth", -1);
 		videoHeight = intent.getIntExtra("videoHeight", -1);
 		videoBitrate = intent.getIntExtra("videoBitrate", -1);
@@ -132,7 +137,7 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
 	public void surfaceChanged(SurfaceHolder holder, int arg1, int arg2, int arg3) {
 		if(camera != null)
 			camera.release();
-		camera = Camera.open();
+		camera = Camera.open(cameraNumber);
 		Parameters p = camera.getParameters();
 		p.setPreviewSize(videoWidth, videoHeight);
 		camera.setParameters(p);
@@ -156,17 +161,19 @@ public class KrCamService  extends Service implements PreviewCallback, Callback,
 		}
 		camera.startPreview();
 		if(krCamStream==null) {
-			krCamStream = krStreamCreate(Environment.getExternalStorageDirectory()+"/", videoWidth, videoHeight, videoBitrate, audioSampleRate, audioQuality, streamFile, localFile);
+			krCamStream = krStreamCreate(Environment.getExternalStorageDirectory()+"/", videoWidth, videoHeight, videoBitrate, micSource >=0 ? true : false, audioSampleRate, audioQuality, streamFile, localFile);
 			formatString = ""+videoWidth+"x"+videoHeight+" NV21 ";
 
-			int min = AudioRecord.getMinBufferSize(audioSampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-			try{
-				ar = new AudioRecord(MediaRecorder.AudioSource.CAMCORDER, audioSampleRate, AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT, min);
-				ar.startRecording();
-				Thread t = new Thread(this);
-				t.start();
-			} catch(Exception e) {
-				
+			if(micSource>=0) {
+				int min = AudioRecord.getMinBufferSize(audioSampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+				try{
+					ar = new AudioRecord(micSource, audioSampleRate, AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT, min);
+					ar.startRecording();
+					Thread t = new Thread(this);
+					t.start();
+				} catch(Exception e) {
+					
+				}
 			}
 		}
 	}

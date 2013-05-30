@@ -15,6 +15,6 @@
     <string name="audioQuality">Audio Quality (0-10)</string>
     <string name="stream">Stream to internet</string>
     <string name="both">Both</string>
-    <string name="saveToSdcard">Saved to SDCARD</string>
+    <string name="saveToSdcard">Save to SDCARD</string>
 
 </resources>

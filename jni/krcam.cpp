@@ -1,11 +1,11 @@
 #include "krcam.h"
 extern "C" {
 
-JNIEXPORT jlong JNICALL Java_ws_websca_krcam_KrCamService_krStreamCreate( JNIEnv* env, jobject thiz, jstring path, jint w, jint h, jint videoBitrate, jint audioSampleRate, jint audioQuality, jboolean networkStream, jboolean saveLocally )
+JNIEXPORT jlong JNICALL Java_ws_websca_krcam_KrCamService_krStreamCreate( JNIEnv* env, jobject thiz, jstring path, jint w, jint h, jint videoBitrate, jboolean useAudio, jint audioSampleRate, jint audioQuality, jboolean networkStream, jboolean saveLocally )
 {
 	kr_cam_t *cam = (kr_cam_t*)calloc (1, sizeof(kr_cam_t));
 	char *nativeString = (char*)env->GetStringUTFChars(path, 0);
-	cam->params = init_params(nativeString, w, h, audioSampleRate, audioQuality);
+	cam->params = init_params(nativeString, w, h, useAudio, audioSampleRate, audioQuality);
 	env->ReleaseStringUTFChars(path, nativeString);
 
 	if(saveLocally)
@@ -39,10 +39,11 @@ JNIEXPORT jlong JNICALL Java_ws_websca_krcam_KrCamService_krStreamCreate( JNIEnv
 
 	cam->video_track_id = kr_mkv_add_video_track (cam->stream, VP8, 1000,	1, cam->params->width, cam->params->height);
 
-	cam->vorbis = krad_vorbis_encoder_create (cam->params->channels, cam->params->sample_rate, cam->params->audio_quality);
-
-	cam->audio_track_id = kr_mkv_add_audio_track(cam->stream, VORBIS, cam->params->sample_rate, cam->params->channels, cam->vorbis->hdrdata, 3 + cam->vorbis->header.sz[0] + cam->vorbis->header.sz[1] + cam->vorbis->header.sz[2]);
-	cam->audio_ring = krad_ringbuffer_create (500000);
+	if(cam->params->use_audio) {
+		cam->vorbis = krad_vorbis_encoder_create (cam->params->channels, cam->params->sample_rate, cam->params->audio_quality);
+		cam->audio_track_id = kr_mkv_add_audio_track(cam->stream, VORBIS, cam->params->sample_rate, cam->params->channels, cam->vorbis->hdrdata, 3 + cam->vorbis->header.sz[0] + cam->vorbis->header.sz[1] + cam->vorbis->header.sz[2]);
+		cam->audio_ring = krad_ringbuffer_create (500000);
+	}
 
 	return (long)cam;
 }
@@ -50,6 +51,8 @@ JNIEXPORT jlong JNICALL Java_ws_websca_krcam_KrCamService_krStreamCreate( JNIEnv
 JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_KrCamService_krAudioCallback( JNIEnv* env, jobject thiz, jlong p, jbyteArray buffer, jint size )
 {
 	kr_cam_t *cam=(kr_cam_t*)p;
+	if(!cam->params->use_audio || cam==NULL || cam->audio_ring==NULL)
+		return false;
 	float samples[8192];
 	jbyte* bufferPtr = env->GetByteArrayElements(buffer, 0);
 	int16_to_float (samples, (char *)bufferPtr + (0 * 2),	size/2, 2);
@@ -61,8 +64,11 @@ JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_KrCamService_krAudioCallback( JN
 JNIEXPORT jboolean JNICALL Java_ws_websca_krcam_KrCamService_krStreamDestroy( JNIEnv* env, jobject thiz, jlong p )
 {
 	kr_cam_t *cam=(kr_cam_t*)p;
-	krad_ringbuffer_free (cam->audio_ring);
-	krad_vorbis_encoder_destroy (&cam->vorbis);
+	if(cam->params->use_audio) {
+		krad_ringbuffer_free (cam->audio_ring);
+		cam->audio_ring=NULL;
+		krad_vorbis_encoder_destroy (&cam->vorbis);
+	}
 	if(cam->stream!=NULL)
 		kr_mkv_destroy (&cam->stream);
 	cam->stream=NULL;
@@ -106,8 +112,8 @@ JNIEXPORT jstring JNICALL Java_ws_websca_krcam_KrCamService_krAddVideo( JNIEnv* 
 		sprintf(r, pkt->kind == VPX_CODEC_CX_FRAME_PKT && (pkt->data.frame.flags & VPX_FRAME_IS_KEY)? "K":".");
 	}
 	cam->frame_count++;
-
-	kr_cam_run_audio(cam);
+	if(cam->params->use_audio)
+		kr_cam_run_audio(cam);
 
 	return env->NewStringUTF(r);
 }
@@ -130,7 +136,7 @@ static void free_params(kr_cam_params_t* params)
 	free(params);
 }
 
-static kr_cam_params_t* init_params(char *path, int w, int h, int audioSampleRate, int audioQuality)
+static kr_cam_params_t* init_params(char *path, int w, int h, bool use_audio, int audioSampleRate, int audioQuality)
 {
 	kr_cam_params_t *params;
 	params = (kr_cam_params_t*)calloc (1, sizeof(kr_cam_params_t));
@@ -152,6 +158,7 @@ static kr_cam_params_t* init_params(char *path, int w, int h, int audioSampleRat
 	params->height=h;
 
 	//audio
+	params->use_audio=use_audio;
 	params->channels=1;
 	params->sample_rate=audioSampleRate;
 	params->audio_quality=((float)audioQuality)/10.0;
